@@ -133,6 +133,18 @@ func NewHttpClient(c *config.Configuration, host string) *HttpClient {
 	}
 
 	tr.TLSClientConfig = &tls.Config{}
+
+	if isClientCertEnabledForHost(c, host) {
+		tr.TLSClientConfig.Certificates = []tls.Certificate{getClientCertForHost(c, host)}
+		tr.TLSClientConfig.BuildNameToCertificate()
+	}
+
+	if isCertVerificationDisabledForHost(c, host) {
+		tr.TLSClientConfig.InsecureSkipVerify = true
+	} else {
+		tr.TLSClientConfig.RootCAs = getRootCAsForHost(c, host)
+	}
+
 	if isCertVerificationDisabledForHost(c, host) {
 		tr.TLSClientConfig.InsecureSkipVerify = true
 	} else {

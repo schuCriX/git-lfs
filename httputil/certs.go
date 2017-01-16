@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
@@ -25,6 +26,35 @@ func isCertVerificationDisabledForHost(cfg *config.Configuration, host string) b
 
 	return false
 
+}
+
+// isClientCertEnabledForHost returns whether client certificate
+// are configured for the given host
+func isClientCertEnabledForHost(cfg *config.Configuration, host string) bool {
+
+	_, hostSslKeyOk := cfg.Git.Get(fmt.Sprintf("http.https://%v/.sslKey", host))
+	_, hostSslCertOk := cfg.Git.Get(fmt.Sprintf("http.https://%v/.sslCert", host))
+	_, hostSslCaInfoOk := cfg.Git.Get(fmt.Sprintf("http.https://%v/.sslCaInfo", host))
+
+	if hostSslKeyOk && hostSslCertOk && hostSslCaInfoOk {
+		return true
+	}
+
+	return false
+}
+
+// getClientCertForHost returns a client certificate for a specific host (which may
+// be "host:port" loaded from the gitconfig
+func getClientCertForHost(cfg *config.Configuration, host string) tls.Certificate {
+
+	hostSslKey, _ := cfg.Git.Get(fmt.Sprintf("http.https://%v/.sslKey", host))
+	hostSslCert, _ := cfg.Git.Get(fmt.Sprintf("http.https://%v/.sslCert", host))
+
+	cert, err := tls.LoadX509KeyPair(hostSslCert, hostSslKey)
+	if err != nil {
+		tracerx.Printf("Error reading client cert/key %v", err)
+	}
+	return cert
 }
 
 // getRootCAsForHost returns a certificate pool for that specific host (which may
